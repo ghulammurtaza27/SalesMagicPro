@@ -1,0 +1,18 @@
+Sales OS: Full Funnel AI-Augmented Workflow for Account Executives						
+Stage	Phase	Description	Key Data Inputs	AI Use Cases	Output/Action	
+1	Inbound Intake	Visitor books a call through website form	Company size, employee count, budget, interest area, timeline, notes	Budget as lead score predictor, GPT scoring	Lead qualification tier, early disqualification flag	
+2	Pre-Call Research	Before the AE call, pre-call research auto-generated	HubSpot CRM fields, company domain, LinkedIn links	Enrichment, social signals, competitor analysis (via web scraping APIs)	AE gets 1-pager brief: summary, social proof, relevant pain points	
+3	Live Call Support	Call stages: rapport → discovery → pitch → next steps	Call transcript, screen recording, tone analysis	a) Post-call outcome prediction b) Coaching recommendations	AI call scorecard, coaching clips, summary	
+4	Follow-Up Automation	Post-call next steps and task creation	HubSpot call record, notes, summary	Task suggestion, follow-up email generation or follow up idea generation	Calendar task automation, Smart follow-up drafts	gong
+5	Mid-Funnel Deal Health	Analyze ongoing deal health over time	Email, call logs, meeting cadence, reply rate	a) Deal risk detection b) Next best action	"Deal at Risk" alerts, re-engagement playbook	gong
+6	Closed-Won Analysis	Build persona-driven playbooks and OS	Past win data: roles, objections, timelines, notes	Persona clustering, objection mapping, pain point extraction	Battle cards, ICP-based talk tracks	
+7	Closed-Lost Recovery	Post-mortem analysis of lost deals	CRM close reason, call/email analysis	a) Loss reason prediction b) Salvage likelihood	Reactivation list with tailored re-engagement plan	
+						
+						
+Key Strategic Layers to Build Next						
+Central Deal Intelligence Layer	GPT-based enrichment of every deal in HubSpot with past conversations, call analysis, and sentiment					
+	GPT-based enrichment of every deal in HubSpot with past conversations, call analysis, and sentiment	Lead score, AE performance, likelihood to close				
+Sales OS Library (Continuously Learned)	Objection Handling, Talk Tracks, Persona Pitches	Auto list of all objections from the week 				
+	Integrated with Slack/CRM for on-demand prompts	gong has "ask any"				
+Weekly Deal Review AI Digest	“Here’s what happened last week: 5 high-risk deals, 2 hot leads, AE coaching notes, 3 win/loss pattern shifts”	gong has but not good				
+Agent-in-the-loop Copilot	AE or manager can ask: “What’s the latest on Acme Corp?” or “Which deals are silent for 5+ days?”	gong has on "ask any"				
