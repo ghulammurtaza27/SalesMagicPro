@@ -8,6 +8,7 @@ import Dashboard from "@/pages/dashboard";
 import Leads from "@/pages/leads";
 import Pipeline from "@/pages/pipeline";
 import Calls from "@/pages/calls";
+import AIInsights from "@/pages/ai-insights";
 import Analytics from "@/pages/analytics";
 import NotFound from "@/pages/not-found";
 
@@ -21,6 +22,7 @@ function Router() {
           <Route path="/leads" component={Leads} />
           <Route path="/pipeline" component={Pipeline} />
           <Route path="/calls" component={Calls} />
+          <Route path="/ai-insights" component={AIInsights} />
           <Route path="/analytics" component={Analytics} />
           <Route component={NotFound} />
         </Switch>
