@@ -3,7 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { useQuery } from "@tanstack/react-query";
+import { Input } from "@/components/ui/input";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useState } from "react";
 import { 
   Brain, 
   Target, 
@@ -14,11 +18,29 @@ import {
   MessageSquare,
   Lightbulb,
   ArrowRight,
-  Clock
+  Clock,
+  RefreshCw,
+  Send,
+  Settings,
+  CheckCircle,
+  XCircle
 } from "lucide-react";
 import type { Lead, Deal } from "@shared/schema";
 
+// Mock user ID - in production, this would come from authentication
+const CURRENT_USER_ID = "ae-001";
+
 export default function AIInsights() {
+  const [question, setQuestion] = useState("");
+  const [selectedDealId, setSelectedDealId] = useState<string>("");
+
+  // Check integration health first
+  const { data: healthCheck, isLoading: healthLoading } = useQuery({
+    queryKey: ["/api/integrations/health"],
+    refetchInterval: 30000, // Check every 30 seconds
+  });
+
+  // Local fallback data
   const { data: leads } = useQuery<Lead[]>({
     queryKey: ["/api/leads"],
   });
@@ -26,6 +48,60 @@ export default function AIInsights() {
   const { data: deals } = useQuery<Deal[]>({
     queryKey: ["/api/deals"],
   });
+
+  // Real-time data from integrations (when available)
+  const { data: dashboard, isLoading: dashboardLoading } = useQuery({
+    queryKey: ["/api/integrations/dashboard", CURRENT_USER_ID],
+    enabled: healthCheck?.status === "ready",
+  });
+
+  const { data: silentDealsReal } = useQuery({
+    queryKey: ["/api/integrations/silent-deals", CURRENT_USER_ID],
+    enabled: healthCheck?.status === "ready",
+  });
+
+  // AI Copilot mutation
+  const copilotMutation = useMutation({
+    mutationFn: async (data: { question: string; userId: string }) => {
+      const response = await fetch("/api/integrations/copilot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to get AI response");
+      return response.json();
+    },
+    onSuccess: () => {
+      setQuestion("");
+    },
+  });
+
+  // Deal analysis mutation
+  const dealAnalysisMutation = useMutation({
+    mutationFn: async (data: { dealId: string; userId: string }) => {
+      const response = await fetch("/api/integrations/analyze-deal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Failed to analyze deal");
+      return response.json();
+    },
+  });
+
+  const handleAskQuestion = () => {
+    if (!question.trim()) return;
+    if (healthCheck?.status === "ready") {
+      copilotMutation.mutate({ question, userId: CURRENT_USER_ID });
+    }
+  };
+
+  const handleAnalyzeDeal = (dealId: string) => {
+    setSelectedDealId(dealId);
+    if (healthCheck?.status === "ready") {
+      dealAnalysisMutation.mutate({ dealId, userId: CURRENT_USER_ID });
+    }
+  };
 
   // Calculate insights based on real data
   const highScoreLeads = leads?.filter(lead => (lead.aiScore || 0) >= 80) || [];
@@ -127,7 +203,222 @@ export default function AIInsights() {
       />
       
       <div className="p-6 space-y-8">
-        {/* Real-time Insights */}
+        {/* Integration Status */}
+        {healthLoading ? (
+          <Card>
+            <CardContent className="flex items-center justify-center py-8">
+              <RefreshCw className="h-6 w-6 animate-spin mr-2" />
+              <span>Checking integration status...</span>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className={`border-2 ${healthCheck?.status === "ready" ? "border-green-200 bg-green-50" : "border-amber-200 bg-amber-50"}`}>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                {healthCheck?.status === "ready" ? (
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                ) : (
+                  <Settings className="h-5 w-5 text-amber-600" />
+                )}
+                Integration Status
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {healthCheck?.status === "ready" ? (
+                <div>
+                  <p className="text-green-700 mb-4">All integrations connected successfully. Real-time data available from HubSpot and Gong.</p>
+                  <div className="flex gap-4">
+                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      HubSpot Connected
+                    </Badge>
+                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Gong Connected
+                    </Badge>
+                    <Badge variant="secondary" className="bg-green-100 text-green-800">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      AI Engine Ready
+                    </Badge>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-amber-700 mb-4">Integration setup required for real-time AI insights. Using sample data for demonstration.</p>
+                  <div className="flex gap-4">
+                    <Badge variant="secondary" className={`${healthCheck?.services?.hubspot ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                      {healthCheck?.services?.hubspot ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+                      HubSpot {healthCheck?.services?.hubspot ? "Ready" : "Missing Token"}
+                    </Badge>
+                    <Badge variant="secondary" className={`${healthCheck?.services?.gong ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                      {healthCheck?.services?.gong ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+                      Gong {healthCheck?.services?.gong ? "Ready" : "Missing Token"}
+                    </Badge>
+                    <Badge variant="secondary" className={`${healthCheck?.services?.openai ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"}`}>
+                      {healthCheck?.services?.openai ? <CheckCircle className="h-3 w-3 mr-1" /> : <XCircle className="h-3 w-3 mr-1" />}
+                      OpenAI {healthCheck?.services?.openai ? "Ready" : "Missing Key"}
+                    </Badge>
+                  </div>
+                  {healthCheck?.status !== "ready" && (
+                    <Alert className="mt-4">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        To access real-time data and AI insights, please provide the required API credentials for HubSpot, Gong, and OpenAI.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* AI Copilot Chat */}
+        {healthCheck?.status === "ready" && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Brain className="h-5 w-5 text-blue-600" />
+                AI Sales Copilot
+              </CardTitle>
+              <CardDescription>
+                Ask questions about your deals, prospects, or performance using natural language
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Ask me about your pipeline, deals, or next actions..."
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAskQuestion()}
+                  className="flex-1"
+                />
+                <Button 
+                  onClick={handleAskQuestion}
+                  disabled={!question.trim() || copilotMutation.isPending}
+                  className="px-6"
+                >
+                  {copilotMutation.isPending ? (
+                    <RefreshCw className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
+              
+              {/* AI Response Display */}
+              {copilotMutation.data && (
+                <Card className="bg-blue-50 border-blue-200">
+                  <CardContent className="pt-4">
+                    <div className="flex items-start gap-3">
+                      <Brain className="h-5 w-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm text-blue-800 font-medium mb-1">AI Copilot Response:</p>
+                        <p className="text-blue-700">{copilotMutation.data.answer}</p>
+                        {copilotMutation.data.context && (
+                          <p className="text-xs text-blue-600 mt-2">
+                            Analyzed {copilotMutation.data.context.dealsCount} deals, {copilotMutation.data.context.callsCount} calls, and {copilotMutation.data.context.contactsCount} contacts
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {copilotMutation.isError && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Failed to get AI response. Please try again.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Real-time Dashboard Data */}
+        {dashboard && healthCheck?.status === "ready" && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Target className="h-5 w-5 text-green-600" />
+                  Pipeline Metrics
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Total Deals</span>
+                    <span className="font-semibold">{dashboard.metrics.totalDeals}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Pipeline Value</span>
+                    <span className="font-semibold">${dashboard.metrics.pipelineValue.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Avg Deal Size</span>
+                    <span className="font-semibold">${dashboard.metrics.avgDealSize.toLocaleString()}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="h-5 w-5 text-blue-600" />
+                  Call Activity
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Total Calls</span>
+                    <span className="font-semibold">{dashboard.metrics.totalCalls}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Recent Calls</span>
+                    <span className="font-semibold">{dashboard.recentCalls?.length || 0}</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-purple-600" />
+                  AI Insights
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {dashboard.insights?.riskAlerts && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Risk Alerts</span>
+                      <Badge variant="destructive">{dashboard.insights.riskAlerts.length}</Badge>
+                    </div>
+                  )}
+                  {dashboard.insights?.recommendations && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-muted-foreground">Recommendations</span>
+                      <Badge variant="secondary">{dashboard.insights.recommendations.length}</Badge>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Fallback to local data insights when integrations not available */}
+        {(!healthCheck || healthCheck?.status !== "ready") && (
+          <div className="space-y-8">
+            {/* Real-time Insights */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {insights.map((insight, index) => (
             <Card key={index} className="shadow-sm border border-slate-200">
@@ -282,6 +573,8 @@ export default function AIInsights() {
             </div>
           </CardContent>
         </Card>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,8 +3,24 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertLeadSchema, insertDealSchema, insertActivitySchema, insertCallNoteSchema } from "@shared/schema";
 import { z } from "zod";
+import { registerIntegrationRoutes } from "./routes/integration-routes";
+import { IntegrationService } from "./integrations/integration-service";
+
+// Initialize integration service if API keys are available
+let integrationService: IntegrationService | null = null;
+
+if (process.env.HUBSPOT_ACCESS_TOKEN && process.env.GONG_ACCESS_TOKEN && process.env.OPENAI_API_KEY) {
+  integrationService = new IntegrationService(
+    process.env.HUBSPOT_ACCESS_TOKEN,
+    process.env.GONG_ACCESS_TOKEN,
+    process.env.OPENAI_API_KEY
+  );
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Integration routes (HubSpot, Gong, AI)
+  registerIntegrationRoutes(app, integrationService);
+
   // Lead routes
   app.get("/api/leads", async (req, res) => {
     try {
